@@ -1,5 +1,10 @@
 # Universal E-commerce Price Intelligence
 
+[![CI](https://github.com/mojtaba-py-code/Universal-E-commerce-Price-Intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/mojtaba-py-code/Universal-E-commerce-Price-Intelligence/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A plugin-based system that scrapes product data from e-commerce stores, stores a
 full **price history** in a relational database, **detects price changes**, and
 serves **analytics + charts** through a FastAPI web dashboard.
