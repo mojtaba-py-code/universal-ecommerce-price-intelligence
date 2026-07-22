@@ -1,0 +1,2 @@
+[console_scripts]
+price-intel = price_intel.cli:main

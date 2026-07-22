@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Price Intelligence</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1420; --panel: #171e2e; --panel-2: #1e2740; --border: #2a3450;
+      --text: #e6ebf5; --muted: #8f9bb3; --accent: #5b8cff; --accent-2: #34d399;
+      --danger: #f87171; --warn: #fbbf24; --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 80% -10%, #1b2b4a 0, transparent 60%), var(--bg);
+      color: var(--text); line-height: 1.5;
+    }
+    header {
+      padding: 22px 28px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 14px; position: sticky; top: 0;
+      background: rgba(15,20,32,.85); backdrop-filter: blur(8px); z-index: 5;
+    }
+    header h1 { font-size: 18px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+    header .badge {
+      font-size: 12px; color: var(--muted); border: 1px solid var(--border);
+      padding: 3px 9px; border-radius: 999px;
+    }
+    .wrap { max-width: 1150px; margin: 0 auto; padding: 26px 20px 60px; }
+    .track-bar { display: flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; }
+    input[type=text] {
+      flex: 1; min-width: 260px; background: var(--panel); border: 1px solid var(--border);
+      color: var(--text); padding: 12px 14px; border-radius: 10px; font-size: 14px;
+    }
+    input[type=text]:focus { outline: none; border-color: var(--accent); }
+    button {
+      background: var(--accent); color: #fff; border: 0; padding: 12px 18px;
+      border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    button:disabled { opacity: .55; cursor: default; }
+    .toast { font-size: 13px; color: var(--muted); margin: -14px 0 22px; min-height: 18px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px; cursor: pointer; transition: border-color .15s, transform .15s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card .title { font-weight: 600; font-size: 14px; margin: 0 0 6px; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 40px; }
+    .card .brand { color: var(--muted); font-size: 12px; }
+    .price-row { display: flex; align-items: baseline; gap: 8px; margin-top: 10px; }
+    .price { font-size: 22px; font-weight: 700; }
+    .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+    .pill.low { background: rgba(52,211,153,.15); color: var(--accent-2); }
+    .pill.oos { background: rgba(248,113,113,.15); color: var(--danger); }
+    .meta { display: flex; gap: 12px; color: var(--muted); font-size: 12px; margin-top: 10px; }
+    .empty { color: var(--muted); text-align: center; padding: 50px 0; }
+    /* Detail modal */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(3,6,12,.7); backdrop-filter: blur(3px);
+      display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 20;
+      overflow-y: auto;
+    }
+    .overlay.open { display: flex; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+      width: min(880px, 100%); padding: 24px;
+    }
+    .modal h2 { margin: 0 8px 4px 0; font-size: 18px; }
+    .modal .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px,1fr)); gap: 12px; margin: 8px 0 20px; }
+    .stat { background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
+    .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+    .stat .v { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .close { float: right; }
+    table.specs { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 14px; }
+    table.specs td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    table.specs td.k { color: var(--muted); width: 40%; }
+    .changes { margin-top: 16px; font-size: 13px; }
+    .chg { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+    .up { color: var(--danger); } .down { color: var(--accent-2); }
+    .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin: 20px 0 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛒 Universal Price Intelligence</h1>
+    <span class="badge" id="modeBadge">…</span>
+  </header>
+
+  <div class="wrap">
+    <div class="track-bar">
+      <input type="text" id="urlInput" placeholder="Paste an Amazon product URL (e.g. https://www.amazon.com/dp/B08N5WRWNW)" />
+      <button id="trackBtn">Track price</button>
+      <button class="secondary" id="refreshAllBtn" title="Re-check every tracked product">↻ Refresh all</button>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div id="cards" class="grid"></div>
+    <div id="empty" class="empty" style="display:none">
+      No products tracked yet. Paste a product URL above to begin.
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <script>
+    const $ = (s, r = document) => r.querySelector(s);
+    const fmt = (n, c = "USD") => n == null ? "—" : new Intl.NumberFormat("en-US",
+      { style: "currency", currency: c }).format(n);
+    let chart = null;
+
+    async function api(path, opts) {
+      const res = await fetch(path, opts);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.detail || res.statusText);
+      return body;
+    }
+
+    async function loadMode() {
+      try { const h = await api("/health");
+        $("#modeBadge").textContent = "scraper: " + h.scraper_mode; } catch {}
+    }
+
+    async function loadProducts() {
+      const items = await api("/api/products");
+      const cards = $("#cards");
+      cards.innerHTML = "";
+      $("#empty").style.display = items.length ? "none" : "block";
+      for (const p of items) {
+        const el = document.createElement("div");
+        el.className = "card";
+        el.onclick = () => openDetail(p.id);
+        const pills = [];
+        if (p.is_lowest_ever && p.current_price != null) pills.push('<span class="pill low">Lowest ever</span>');
+        if (!p.in_stock) pills.push('<span class="pill oos">Out of stock</span>');
+        el.innerHTML = `
+          <div class="title">${escapeHtml(p.title || p.external_id)}</div>
+          <div class="brand">${escapeHtml(p.brand || p.store.name)}</div>
+          <div class="price-row">
+            <span class="price">${fmt(p.current_price, p.currency)}</span>
+            ${pills.join(" ")}
+          </div>
+          <div class="meta">
+            <span>★ ${p.rating ?? "—"}</span>
+            <span>${p.review_count?.toLocaleString?.() ?? "—"} reviews</span>
+            <span>${p.snapshots} snapshots</span>
+          </div>`;
+        cards.appendChild(el);
+      }
+    }
+
+    async function openDetail(id) {
+      const p = await api(`/api/products/${id}`);
+      const s = p.stats;
+      const specRows = Object.entries(p.specs || {})
+        .map(([k, v]) => `<tr><td class="k">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join("");
+      const changeRows = (p.changes || []).slice(0, 8).map(c => `
+        <div class="chg">
+          <span>${new Date(c.detected_at).toLocaleString()}</span>
+          <span class="${c.direction}">${fmt(c.old_price, p.currency)} → ${fmt(c.new_price, p.currency)}
+            (${c.change_percent > 0 ? "+" : ""}${c.change_percent}%)</span>
+        </div>`).join("") || '<div class="brand">No price changes recorded yet.</div>';
+
+      $("#modal").innerHTML = `
+        <button class="secondary close" onclick="closeDetail()">✕ Close</button>
+        <h2>${escapeHtml(p.title || p.external_id)}</h2>
+        <div class="sub">${escapeHtml(p.brand || "")} · ${p.store.name} ·
+          <a href="${p.url}" target="_blank" rel="noopener" style="color:var(--accent)">open source ↗</a></div>
+        <div class="stats">
+          <div class="stat"><div class="k">Current</div><div class="v">${fmt(s.current_price, p.currency)}</div></div>
+          <div class="stat"><div class="k">Lowest ever</div><div class="v">${fmt(s.lowest_price, p.currency)}</div></div>
+          <div class="stat"><div class="k">Highest</div><div class="v">${fmt(s.highest_price, p.currency)}</div></div>
+          <div class="stat"><div class="k">Average</div><div class="v">${fmt(s.average_price, p.currency)}</div></div>
+          <div class="stat"><div class="k">Off peak</div><div class="v">${s.price_drop_from_peak_pct ?? 0}%</div></div>
+        </div>
+        <button id="refreshOne" class="secondary">↻ Refresh now</button>
+        <div class="section-title">Price history</div>
+        <canvas id="chart" height="110"></canvas>
+        <div class="section-title">Recent changes</div>
+        <div class="changes">${changeRows}</div>
+        ${specRows ? `<div class="section-title">Specifications</div><table class="specs">${specRows}</table>` : ""}`;
+
+      $("#overlay").classList.add("open");
+      $("#refreshOne").onclick = async () => {
+        try { const r = await api(`/api/products/${id}/refresh`, { method: "POST" });
+          toast(r.message); await openDetail(id); await loadProducts(); }
+        catch (e) { toast("⚠ " + e.message); }
+      };
+      drawChart(p.history, p.currency);
+    }
+
+    function drawChart(history, currency) {
+      const ctx = $("#chart");
+      const labels = history.map(h => new Date(h.at).toLocaleDateString());
+      const data = history.map(h => h.price);
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets: [{
+          label: "Price (" + currency + ")", data,
+          borderColor: "#5b8cff", backgroundColor: "rgba(91,140,255,.15)",
+          fill: true, tension: .25, pointRadius: 3, spanGaps: true }] },
+        options: { responsive: true,
+          plugins: { legend: { labels: { color: "#8f9bb3" } } },
+          scales: {
+            x: { ticks: { color: "#8f9bb3" }, grid: { color: "rgba(255,255,255,.05)" } },
+            y: { ticks: { color: "#8f9bb3" }, grid: { color: "rgba(255,255,255,.05)" } } } }
+      });
+    }
+
+    function closeDetail() { $("#overlay").classList.remove("open"); if (chart) { chart.destroy(); chart = null; } }
+    $("#overlay").addEventListener("click", e => { if (e.target.id === "overlay") closeDetail(); });
+
+    function toast(msg) { $("#toast").textContent = msg; }
+    function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g,
+      c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+    $("#trackBtn").onclick = async () => {
+      const url = $("#urlInput").value.trim();
+      if (!url) return;
+      const btn = $("#trackBtn"); btn.disabled = true; toast("Scraping…");
+      try {
+        const r = await api("/api/track", { method: "POST",
+          headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+        toast(r.message); $("#urlInput").value = ""; await loadProducts();
+      } catch (e) { toast("⚠ " + e.message); }
+      finally { btn.disabled = false; }
+    };
+    $("#urlInput").addEventListener("keydown", e => { if (e.key === "Enter") $("#trackBtn").click(); });
+
+    $("#refreshAllBtn").onclick = async () => {
+      const items = await api("/api/products");
+      toast(`Refreshing ${items.length} product(s)…`);
+      for (const p of items) { try { await api(`/api/products/${p.id}/refresh`, { method: "POST" }); } catch {} }
+      toast("Refreshed all."); await loadProducts();
+    };
+
+    loadMode(); loadProducts();
+  </script>
+</body>
+</html>
