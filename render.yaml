@@ -1,0 +1,16 @@
+# Render Blueprint — one-click deploy of the demo dashboard.
+# Runs the zero-setup configuration: local SQLite + offline `fixture` scraper,
+# seeded with ~30 days of demo price history so the charts render immediately.
+services:
+  - type: web
+    name: price-intelligence-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -e .
+    # Seed demo data (idempotent, offline) then serve on the port Render assigns.
+    startCommand: python seed_demo.py && python -m price_intel.cli serve --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SCRAPER_MODE
+        value: fixture
