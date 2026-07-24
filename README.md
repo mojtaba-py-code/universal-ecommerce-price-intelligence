@@ -12,6 +12,15 @@ serves **analytics + charts** through a FastAPI web dashboard.
 > Built around a clean plugin architecture: adding a new store is a single new
 > file, no changes to the pipeline, API, or database layer.
 
+## Dashboard
+
+A built-in FastAPI dashboard charts each product's full price history,
+highlights the lowest-ever price, and lists every detected change.
+
+![Product detail: price-history chart, key stats, and change log](docs/dashboard.png)
+
+![Tracked products overview](docs/dashboard-list.png)
+
 ---
 
 ## What it collects
