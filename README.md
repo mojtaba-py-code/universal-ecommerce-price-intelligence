@@ -1,9 +1,13 @@
 # Universal E-commerce Price Intelligence
 
+[![Live Demo](https://img.shields.io/badge/%F0%9F%9F%A2%20Live%20Demo-onrender.com-brightgreen)](https://price-intelligence-demo.onrender.com)
 [![CI](https://github.com/mojtaba-py-code/Universal-E-commerce-Price-Intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/mojtaba-py-code/Universal-E-commerce-Price-Intelligence/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **▶ Live demo:** <https://price-intelligence-demo.onrender.com> — hosted on Render's
+> free tier, so the first request after a while may take ~30–60 s to wake the instance.
 
 A plugin-based system that scrapes product data from e-commerce stores, stores a
 full **price history** in a relational database, **detects price changes**, and
