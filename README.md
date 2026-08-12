@@ -1,6 +1,6 @@
 # Universal E-commerce Price Intelligence
 
-[![Live Demo](https://img.shields.io/badge/%F0%9F%9F%A2%20Live%20Demo-onrender.com-brightgreen)](https://price-intelligence-demo.onrender.com)
+[![Live Demo](https://img.shields.io/badge/%E2%96%B6%20Live%20demo-wakes%20in%20~40s-brightgreen)](https://price-intelligence-demo.onrender.com)
 [![CI](https://github.com/mojtaba-py-code/universal-ecommerce-price-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/mojtaba-py-code/universal-ecommerce-price-intelligence/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
