@@ -77,8 +77,10 @@ def compute_stats(session: Session, product: Product) -> ProductStats:
         stats.latest_review_count = latest.review_count
 
     if priced:
-        prices_minor = [s.price_minor for s in priced]
-        current = priced[-1].price_minor
+        # `priced` is already filtered on `price_minor is not None`; restating it
+        # here is what lets the type checker follow the same reasoning.
+        prices_minor = [s.price_minor for s in priced if s.price_minor is not None]
+        current = prices_minor[-1]
         lowest = min(prices_minor)
         highest = max(prices_minor)
 
@@ -90,7 +92,5 @@ def compute_stats(session: Session, product: Product) -> ProductStats:
         if highest > 0:
             stats.price_drop_from_peak_pct = round((highest - current) / highest * 100, 2)
 
-    stats.history = [
-        PricePoint(at=s.scraped_at, price=s.price, in_stock=s.in_stock) for s in snaps
-    ]
+    stats.history = [PricePoint(at=s.scraped_at, price=s.price, in_stock=s.in_stock) for s in snaps]
     return stats

@@ -3,7 +3,11 @@
 [![Live Demo](https://img.shields.io/badge/%E2%96%B6%20Live%20demo-wakes%20in%20~40s-brightgreen)](https://price-intelligence-demo.onrender.com)
 [![CI](https://github.com/mojtaba-py-code/universal-ecommerce-price-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/mojtaba-py-code/universal-ecommerce-price-intelligence/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141-009688.svg)](https://fastapi.tiangolo.com/)
+[![Coverage](https://img.shields.io/badge/coverage-%E2%89%A580%25%20enforced%20in%20CI-brightgreen.svg)](#tests)
+[![Typed](https://img.shields.io/badge/typed-mypy-2A6DB2.svg)](#tests)
+[![Ruff](https://img.shields.io/badge/style-ruff-D7FF64.svg)](https://docs.astral.sh/ruff/)
+[![Security](https://img.shields.io/badge/security-bandit%20%2B%20pip--audit-4B8BBE.svg)](SECURITY.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > **▶ Live demo:** <https://price-intelligence-demo.onrender.com> — hosted on Render's
@@ -155,14 +159,50 @@ dashboard pick it up automatically.
 
 ---
 
+## Security
+
+The tracking endpoint takes a URL from the caller and the server then fetches
+it. That is the shape of a Server-Side Request Forgery, so it is treated as one:
+
+- **Hostname allow-list.** A URL is accepted only if its *parsed hostname* is,
+  or is a subdomain of, a marketplace a scraper declares. Matching on the
+  hostname rather than on a substring of the URL is the point — `"amazon." in
+  url` would accept `http://169.254.169.254/?x=amazon.` and
+  `https://amazon.com.attacker.example/`.
+- **Public-address check.** Before the socket opens, every address the host
+  resolves to must be globally routable. Loopback, private, link-local
+  (including the `169.254.169.254` cloud-metadata endpoint), reserved,
+  multicast and unspecified ranges are refused. This is not a defence against
+  DNS rebinding, which needs connect-time pinning.
+- **Redirects re-validated per hop.** Redirects are followed manually with
+  `follow_redirects=False`, so a `302` from a legitimate store cannot carry the
+  request to a private address.
+- **Write endpoints gated.** `POST /api/track`, `POST /api/products/{id}/refresh`
+  and `DELETE /api/products/{id}` require an `X-API-Key` header when `API_KEY`
+  is set, compared with `hmac.compare_digest`. Without a key, writes are allowed
+  only in offline `fixture` mode and deletion is refused outright — running
+  `SCRAPER_MODE=live` without a key returns 503 rather than acting as an open
+  fetch proxy. Reads stay public. Writes are additionally rate-limited per
+  client address.
+- **Response headers.** CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+  `Referrer-Policy` and `Permissions-Policy` are set on every response.
+
+CI runs `bandit` over `src` and `pip-audit` over the pinned requirements on
+every push; see [SECURITY.md](SECURITY.md) for how to report an issue.
+
+---
+
 ## Tests
 
 ```bash
 python -m pytest
 ```
 
-23 tests cover scraping/parsing, the pipeline & change detection, analytics, and
-the full HTTP API — all offline against fixtures and a temporary SQLite database.
+80 tests cover scraping/parsing, the pipeline & change detection, analytics, the
+SSRF guard and API access control, and the full HTTP API — all offline against
+fixtures and a temporary SQLite database. Coverage is currently 83 % with an
+**80 % floor enforced in CI**, alongside `ruff`, `mypy`, `bandit` and
+`pip-audit`.
 
 ---
 

@@ -49,10 +49,14 @@ def normalize(data: ProductData) -> ProductData:
     if data.price is not None and data.price < 0:
         data.price = None
 
-    # Collapse whitespace inside spec values and drop empty entries.
-    data.specs = {
-        _clean_text(k, max_len=120): _clean_text(v, max_len=500)
-        for k, v in (data.specs or {}).items()
-        if _clean_text(k) and _clean_text(v)
-    }
+    # Collapse whitespace inside spec values and drop empty entries. Cleaning
+    # once per pair, rather than three times in a comprehension, is both cheaper
+    # and the reason the result is known to hold no ``None``.
+    specs: dict[str, str] = {}
+    for raw_key, raw_value in (data.specs or {}).items():
+        key = _clean_text(raw_key, max_len=120)
+        value = _clean_text(raw_value, max_len=500)
+        if key and value:
+            specs[key] = value
+    data.specs = specs
     return data

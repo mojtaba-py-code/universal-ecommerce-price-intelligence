@@ -14,7 +14,7 @@ rounding problems; helpers convert to/from decimals at the edges.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
@@ -25,13 +25,12 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
-    func,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):
@@ -47,16 +46,14 @@ class Store(Base):
     base_url: Mapped[str] = mapped_column(String(255), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
-    products: Mapped[list["Product"]] = relationship(
+    products: Mapped[list[Product]] = relationship(
         back_populates="store", cascade="all, delete-orphan"
     )
 
 
 class Product(Base):
     __tablename__ = "products"
-    __table_args__ = (
-        UniqueConstraint("store_id", "external_id", name="uq_store_external_id"),
-    )
+    __table_args__ = (UniqueConstraint("store_id", "external_id", name="uq_store_external_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     store_id: Mapped[int] = mapped_column(ForeignKey("stores.id", ondelete="CASCADE"), index=True)
@@ -74,13 +71,13 @@ class Product(Base):
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
 
-    store: Mapped["Store"] = relationship(back_populates="products")
-    snapshots: Mapped[list["PriceSnapshot"]] = relationship(
+    store: Mapped[Store] = relationship(back_populates="products")
+    snapshots: Mapped[list[PriceSnapshot]] = relationship(
         back_populates="product",
         cascade="all, delete-orphan",
         order_by="PriceSnapshot.scraped_at",
     )
-    changes: Mapped[list["PriceChange"]] = relationship(
+    changes: Mapped[list[PriceChange]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
 
@@ -93,7 +90,9 @@ class PriceSnapshot(Base):
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
 
-    price_minor: Mapped[int | None] = mapped_column(Integer, nullable=True)  # cents; None if unknown
+    price_minor: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )  # cents; None if unknown
     currency: Mapped[str] = mapped_column(String(8), default="USD")
     in_stock: Mapped[bool] = mapped_column(Boolean, default=True)
     discount_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -104,7 +103,7 @@ class PriceSnapshot(Base):
         DateTime(timezone=True), default=_utcnow, index=True
     )
 
-    product: Mapped["Product"] = relationship(back_populates="snapshots")
+    product: Mapped[Product] = relationship(back_populates="snapshots")
 
     @property
     def price(self) -> float | None:
@@ -122,14 +121,14 @@ class PriceChange(Base):
 
     old_price_minor: Mapped[int] = mapped_column(Integer)
     new_price_minor: Mapped[int] = mapped_column(Integer)
-    change_minor: Mapped[int] = mapped_column(Integer)       # new - old (signed)
-    change_percent: Mapped[float] = mapped_column(Float)     # relative to old price
-    direction: Mapped[str] = mapped_column(String(8))        # "up" | "down"
+    change_minor: Mapped[int] = mapped_column(Integer)  # new - old (signed)
+    change_percent: Mapped[float] = mapped_column(Float)  # relative to old price
+    direction: Mapped[str] = mapped_column(String(8))  # "up" | "down"
     detected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, index=True
     )
 
-    product: Mapped["Product"] = relationship(back_populates="changes")
+    product: Mapped[Product] = relationship(back_populates="changes")
 
     @property
     def old_price(self) -> float:

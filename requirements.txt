@@ -1,12 +1,18 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-sqlalchemy==2.0.36
-pydantic==2.10.4
-pydantic-settings==2.7.0
+# Runtime dependencies, pinned for reproducible installs.
+#
+# Pins are only safe when something keeps them fresh: Dependabot opens the
+# upgrade PRs and the `security` job in CI runs pip-audit on every push, so a
+# CVE in a pin — including a transitive one such as starlette under fastapi —
+# turns the build red instead of sitting here unnoticed.
+fastapi==0.141.1
+uvicorn[standard]==0.52.3
+sqlalchemy==2.0.52
+pydantic==2.13.4
+pydantic-settings==2.15.0
 httpx==0.28.1
-beautifulsoup4==4.12.3
-psycopg2-binary==2.9.10
+beautifulsoup4==4.15.0
+psycopg2-binary==2.9.12
 python-dotenv==1.2.2
 
 # dev / test
-pytest>=8.4,<9
+pytest>=9.0.3,<10

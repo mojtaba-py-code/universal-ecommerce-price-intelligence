@@ -6,11 +6,10 @@ Add a new store by dropping a module here that subclasses ``BaseScraper`` and
 decorating it with ``@register``.
 """
 
-from .base import BaseScraper, ProductData
-from .registry import get_scraper_for_url, iter_scrapers, register
-
 # Import concrete scrapers for their registration side-effects.
 from . import amazon  # noqa: F401  (side-effect import)
+from .base import BaseScraper, ProductData
+from .registry import get_scraper_for_url, iter_scrapers, register
 
 __all__ = [
     "BaseScraper",

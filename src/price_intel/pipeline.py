@@ -38,11 +38,11 @@ def _get_or_create_store(session: Session, slug: str, name: str, base_url: str) 
     return store
 
 
-def _upsert_product(session: Session, store: Store, data: ProductData, url: str) -> tuple[Product, bool]:
+def _upsert_product(
+    session: Session, store: Store, data: ProductData, url: str
+) -> tuple[Product, bool]:
     product = session.scalar(
-        select(Product).where(
-            Product.store_id == store.id, Product.external_id == data.external_id
-        )
+        select(Product).where(Product.store_id == store.id, Product.external_id == data.external_id)
     )
     created = product is None
     if product is None:

@@ -42,23 +42,34 @@ def test_track_rejects_unknown_store(client):
 
 
 def test_refresh_adds_snapshot(client):
-    pid = client.post(
-        "/api/track", json={"url": "https://www.amazon.com/dp/B08N5WRWNW"}
-    ).json()["product_id"]
+    pid = client.post("/api/track", json={"url": "https://www.amazon.com/dp/B08N5WRWNW"}).json()[
+        "product_id"
+    ]
 
     client.post(f"/api/products/{pid}/refresh")
     detail = client.get(f"/api/products/{pid}").json()
     assert detail["stats"]["snapshots"] == 2
 
 
-def test_delete_product(client):
-    pid = client.post(
+def test_delete_requires_a_configured_key(client):
+    """With no API_KEY set, deletion is refused rather than left open."""
+    pid = client.post("/api/track", json={"url": "https://www.amazon.com/dp/B08N5WRWNW"}).json()[
+        "product_id"
+    ]
+
+    r = client.delete(f"/api/products/{pid}")
+    assert r.status_code == 503
+    assert len(client.get("/api/products").json()) == 1
+
+
+def test_delete_product_with_key(keyed_client):
+    pid = keyed_client.post(
         "/api/track", json={"url": "https://www.amazon.com/dp/B08N5WRWNW"}
     ).json()["product_id"]
 
-    r = client.delete(f"/api/products/{pid}")
+    r = keyed_client.delete(f"/api/products/{pid}")
     assert r.status_code == 200
-    assert client.get("/api/products").json() == []
+    assert keyed_client.get("/api/products").json() == []
 
 
 def test_get_missing_product_404(client):
