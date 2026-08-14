@@ -12,5 +12,15 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.11.9"
+      # Offline mode: the demo never makes an outbound request, so the tracking
+      # endpoint cannot be used to reach anything. Switching this to `live`
+      # without also setting API_KEY makes the write endpoints return 503 by
+      # design — see the Security section of the README.
       - key: SCRAPER_MODE
         value: fixture
+      # No API_KEY on purpose: the demo stays clickable (tracking works offline
+      # against fixtures) while DELETE is refused outright, because deletion
+      # requires a configured key in every mode. A visitor can explore the
+      # dashboard but cannot erase it.
+      - key: WRITE_RATE_LIMIT
+        value: "10"

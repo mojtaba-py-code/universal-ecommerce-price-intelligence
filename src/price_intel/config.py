@@ -9,7 +9,7 @@ switch into the "real" configuration without touching any code.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 from pydantic import Field
@@ -19,11 +19,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
-class ScraperMode(str, Enum):
+class ScraperMode(StrEnum):
     """Where scrapers get their HTML from."""
 
     FIXTURE = "fixture"  # parse saved HTML - offline, deterministic, test-safe
-    LIVE = "live"        # fetch real pages over the network
+    LIVE = "live"  # fetch real pages over the network
 
 
 class Settings(BaseSettings):
@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     # --- App ---------------------------------------------------------------
     app_host: str = Field(default="127.0.0.1")
     app_port: int = Field(default=8000)
+
+    # --- API access control ------------------------------------------------
+    # Shared secret for the write endpoints, sent as an ``X-API-Key`` header.
+    # Empty means "no key configured", which is only tolerated while the
+    # scraper runs offline in fixture mode — see ``price_intel.api.deps``.
+    api_key: str = Field(default="")
+    # Requests per window, per client address, on the write endpoints.
+    write_rate_limit: int = Field(default=20, ge=1)
+    write_rate_window_seconds: float = Field(default=60.0, gt=0)
 
     @property
     def resolved_database_url(self) -> str:

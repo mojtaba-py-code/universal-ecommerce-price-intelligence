@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 from .. import analysis, pipeline
 from ..db import get_db
-from ..models import Product
+from ..models import PriceChange, Product
 from ..scrapers.base import BlockedError, ScraperError
 from ..scrapers.registry import get_scraper_for_url, iter_scrapers
+from .deps import rate_limit_writes, require_admin_access, require_write_access
 from .schemas import (
     PriceChangeOut,
     PricePointOut,
@@ -45,7 +46,7 @@ def _summary(session: Session, product: Product) -> ProductSummary:
     )
 
 
-def _change_out(change) -> PriceChangeOut:
+def _change_out(change: PriceChange) -> PriceChangeOut:
     return PriceChangeOut(
         old_price=change.old_price,
         new_price=change.new_price,
@@ -71,10 +72,17 @@ def list_products(session: Session = Depends(get_db)) -> list[ProductSummary]:
     return [_summary(session, p) for p in products]
 
 
-@router.post("/track", response_model=TrackResponse)
+@router.post(
+    "/track",
+    response_model=TrackResponse,
+    dependencies=[Depends(require_write_access), Depends(rate_limit_writes)],
+)
 def track_product(req: TrackRequest, session: Session = Depends(get_db)) -> TrackResponse:
     try:
-        get_scraper_for_url(req.url)  # validate early for a clean 400
+        # Resolving a scraper is also the domain allow-list check: a URL whose
+        # hostname belongs to no supported store is rejected here and never
+        # reaches the fetcher.
+        get_scraper_for_url(req.url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -97,7 +105,11 @@ def track_product(req: TrackRequest, session: Session = Depends(get_db)) -> Trac
     )
 
 
-@router.post("/products/{product_id}/refresh", response_model=TrackResponse)
+@router.post(
+    "/products/{product_id}/refresh",
+    response_model=TrackResponse,
+    dependencies=[Depends(require_write_access), Depends(rate_limit_writes)],
+)
 def refresh_product(product_id: int, session: Session = Depends(get_db)) -> TrackResponse:
     product = session.get(Product, product_id)
     if product is None:
@@ -145,7 +157,10 @@ def get_product(product_id: int, session: Session = Depends(get_db)) -> ProductD
     )
 
 
-@router.delete("/products/{product_id}")
+@router.delete(
+    "/products/{product_id}",
+    dependencies=[Depends(require_admin_access), Depends(rate_limit_writes)],
+)
 def delete_product(product_id: int, session: Session = Depends(get_db)) -> dict:
     product = session.get(Product, product_id)
     if product is None:
