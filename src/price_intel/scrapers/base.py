@@ -17,11 +17,11 @@ from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import httpx
 
 from ..config import ScraperMode, get_settings
+from ..security import UnsafeUrlError, domain_matches, ensure_public_url
 
 # A realistic desktop browser fingerprint. Live scraping without this is
 # rejected almost immediately by most stores.
@@ -31,14 +31,18 @@ _DEFAULT_HEADERS = {
         "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     ),
     "Accept": (
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,"
-        "image/webp,*/*;q=0.8"
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     ),
     "Accept-Language": "en-US,en;q=0.9",
     "Accept-Encoding": "gzip, deflate, br",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
+
+# Redirect handling for live fetches. Each hop is re-validated, so the cap is
+# about bounding work, not safety.
+_MAX_REDIRECTS = 5
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
 @dataclass
@@ -78,11 +82,20 @@ class BaseScraper(ABC):
     store_slug: str = ""
     store_name: str = ""
     base_url: str = ""
+    #: Registrable domains this scraper serves, e.g. ``("amazon.com",)``. The
+    #: default :meth:`can_handle` matches the parsed hostname against these.
+    domains: tuple[str, ...] = ()
 
     # -- identity ----------------------------------------------------------
-    @abstractmethod
     def can_handle(self, url: str) -> bool:
-        """Return True if this scraper knows how to handle ``url``."""
+        """Return True if ``url``'s hostname belongs to this scraper's store.
+
+        Hostname matching — not a substring search over the whole URL — is what
+        keeps this from doubling as an SSRF entry point: the URL reaches
+        :meth:`_fetch_live` only if a scraper claims it, so a loose claim is an
+        open redirect into the deployment's own network.
+        """
+        return domain_matches(url, self.domains)
 
     @abstractmethod
     def extract_external_id(self, url: str) -> str:
@@ -109,16 +122,43 @@ class BaseScraper(ABC):
     # -- fetch backends ----------------------------------------------------
     def _fetch_live(self, url: str) -> str:
         settings = get_settings()
+
+        # The URL originates from an API caller, so it is validated immediately
+        # before the socket opens rather than at the edge, where a later
+        # refactor could route around the check.
+        try:
+            target = ensure_public_url(url)
+        except UnsafeUrlError as exc:
+            raise ScraperError(f"refusing to fetch {url}: {exc}") from exc
+
         # Be a polite citizen: throttle before each live request.
         if settings.request_delay_seconds > 0:
             time.sleep(settings.request_delay_seconds)
+
+        # Redirects are followed by hand so that every hop is re-validated.
+        # `follow_redirects=True` would let an attacker-controlled 302 carry the
+        # request from a public store domain to a private address, which is the
+        # standard way an SSRF guard gets bypassed.
         try:
-            resp = httpx.get(
-                url,
-                headers=_DEFAULT_HEADERS,
-                timeout=settings.request_timeout_seconds,
-                follow_redirects=True,
-            )
+            for _hop in range(_MAX_REDIRECTS + 1):
+                resp = httpx.get(
+                    target,
+                    headers=_DEFAULT_HEADERS,
+                    timeout=settings.request_timeout_seconds,
+                    follow_redirects=False,
+                )
+                if resp.status_code not in _REDIRECT_STATUSES:
+                    break
+                location = resp.headers.get("location")
+                if not location:
+                    break
+                next_url = str(resp.url.join(location))
+                try:
+                    target = ensure_public_url(next_url)
+                except UnsafeUrlError as exc:
+                    raise ScraperError(f"refusing to follow redirect to {next_url}: {exc}") from exc
+            else:
+                raise ScraperError(f"too many redirects fetching {url}")
         except httpx.HTTPError as exc:  # network-level failure
             raise ScraperError(f"network error fetching {url}: {exc}") from exc
 

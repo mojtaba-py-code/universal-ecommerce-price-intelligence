@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from .base import BaseScraper, ProductData
 from .registry import register
@@ -29,10 +29,30 @@ class AmazonScraper(BaseScraper):
     store_slug = "amazon"
     store_name = "Amazon"
     base_url = "https://www.amazon.com"
-
-    # -- identity ----------------------------------------------------------
-    def can_handle(self, url: str) -> bool:
-        return "amazon." in url.lower()
+    # Marketplace domains this scraper serves. `BaseScraper.can_handle` matches
+    # the parsed hostname against these, so adding a marketplace here is the
+    # only way to widen what the service will fetch.
+    domains = (
+        "amazon.com",
+        "amazon.co.uk",
+        "amazon.de",
+        "amazon.fr",
+        "amazon.it",
+        "amazon.es",
+        "amazon.ca",
+        "amazon.com.au",
+        "amazon.co.jp",
+        "amazon.in",
+        "amazon.com.br",
+        "amazon.nl",
+        "amazon.se",
+        "amazon.pl",
+        "amazon.com.tr",
+        "amazon.ae",
+        "amazon.sa",
+        "amazon.sg",
+        "amazon.com.mx",
+    )
 
     def extract_external_id(self, url: str) -> str:
         for pattern in (_ASIN_RE, _ASIN_QUERY_RE):
@@ -58,9 +78,7 @@ class AmazonScraper(BaseScraper):
         data.currency = self._parse_currency(soup)
         data.in_stock = self._parse_in_stock(soup)
         data.rating = self._parse_rating(soup)
-        data.review_count = self._parse_int(
-            self._text(soup.select_one("#acrCustomerReviewText"))
-        )
+        data.review_count = self._parse_int(self._text(soup.select_one("#acrCustomerReviewText")))
         data.image_url = self._parse_image(soup)
         data.specs = self._parse_specs(soup)
         data.discount_percent = self._parse_discount(soup)
@@ -146,16 +164,15 @@ class AmazonScraper(BaseScraper):
         specs: dict[str, str] = {}
         # Feature bullets.
         bullets = [
-            self._text(li)
+            text
             for li in soup.select("#feature-bullets ul li span.a-list-item")
+            if (text := self._text(li))
         ]
-        bullets = [b for b in bullets if b]
         if bullets:
             specs["highlights"] = " | ".join(bullets[:8])
         # Detail tables (technical + additional info).
         for row in soup.select(
-            "#productDetails_techSpec_section_1 tr, "
-            "#productDetails_detailBullets_sections1 tr"
+            "#productDetails_techSpec_section_1 tr, #productDetails_detailBullets_sections1 tr"
         ):
             key = self._text(row.select_one("th"))
             val = self._text(row.select_one("td"))
@@ -165,7 +182,7 @@ class AmazonScraper(BaseScraper):
 
     # -- utils -------------------------------------------------------------
     @staticmethod
-    def _text(node) -> str | None:
+    def _text(node: Tag | NavigableString | None) -> str | None:
         if node is None:
             return None
         text = node.get_text(" ", strip=True)
