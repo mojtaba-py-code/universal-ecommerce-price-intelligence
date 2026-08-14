@@ -137,7 +137,7 @@ class AmazonScraper(BaseScraper):
         text = self._text(el)
         if not text:
             title = soup.select_one("#acrPopover")
-            text = title.get("title") if title and title.has_attr("title") else None
+            text = self._attr(title, "title")
         if text:
             m = re.search(r"([0-9]+(?:\.[0-9]+)?)", text)
             if m:
@@ -146,9 +146,7 @@ class AmazonScraper(BaseScraper):
 
     def _parse_image(self, soup: BeautifulSoup) -> str | None:
         el = soup.select_one("#landingImage") or soup.select_one("#imgTagWrapperId img")
-        if el is None:
-            return None
-        return el.get("src") or el.get("data-old-hires") or None
+        return self._attr(el, "src") or self._attr(el, "data-old-hires")
 
     def _parse_discount(self, soup: BeautifulSoup) -> float | None:
         text = self._text(soup.select_one(".savingsPercentage")) or self._text(
@@ -181,6 +179,20 @@ class AmazonScraper(BaseScraper):
         return specs
 
     # -- utils -------------------------------------------------------------
+    @staticmethod
+    def _attr(node: Tag | NavigableString | None, name: str) -> str | None:
+        """Return a single attribute value, or None.
+
+        HTML allows multi-valued attributes, so BeautifulSoup hands back a list
+        for some of them. Everything read here is single-valued in practice; a
+        list means the page is not shaped the way this parser expects, which is
+        a miss rather than something to coerce into a string.
+        """
+        if not isinstance(node, Tag):
+            return None
+        value = node.get(name)
+        return value if isinstance(value, str) and value else None
+
     @staticmethod
     def _text(node: Tag | NavigableString | None) -> str | None:
         if node is None:
