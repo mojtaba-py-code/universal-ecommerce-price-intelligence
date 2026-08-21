@@ -297,3 +297,38 @@ def test_live_fetch_stops_after_too_many_redirects(live_mode, monkeypatch):
     with pytest.raises(ScraperError, match="too many redirects"):
         AmazonScraper().fetch(url)
     assert len(calls) == 6  # _MAX_REDIRECTS + 1
+
+
+# --- Stored XSS via the tracked product URL --------------------------------
+#
+# `POST /api/track` is reachable without a key in the offline `fixture` mode the
+# public demo runs in, and the dashboard renders a product's URL into an `href`.
+# A URL whose hostname is a supported store still passes the scraper allow-list,
+# so the allow-list alone never stopped an attribute break-out — validation and
+# escaping do.
+
+_BREAKOUT_URL = 'https://www.amazon.com/dp/B08N5WRWNW" onmouseover="alert(1)'
+
+
+def test_track_stores_no_html_breakout_characters(client):
+    """A break-out payload must not survive into storage verbatim."""
+    r = client.post("/api/track", json={"url": _BREAKOUT_URL})
+    # Either rejected outright, or accepted only in a percent-encoded form.
+    assert r.status_code in (200, 400, 422)
+
+    if r.status_code == 200:
+        pid = r.json()["product_id"]
+        stored = client.get(f"/api/products/{pid}").json()["url"]
+        # The property that matters is that no character able to terminate an
+        # HTML attribute survives — not that the payload's words are absent.
+        # "onmouseover" sitting inside a URL path is inert; a bare quote is not.
+        for char in ('"', "'", "<", ">"):
+            assert char not in stored, f"{char!r} survived into storage: {stored!r}"
+        assert stored.startswith(("http://", "https://"))
+
+
+def test_dashboard_escapes_the_product_url(client):
+    """The template must escape the URL, not interpolate it raw into href."""
+    page = client.get("/").text
+    assert 'href="${p.url}"' not in page, "product URL is interpolated unescaped"
+    assert 'href="${escapeHtml(p.url)}"' in page

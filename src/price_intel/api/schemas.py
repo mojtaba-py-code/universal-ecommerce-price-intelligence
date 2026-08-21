@@ -4,11 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class TrackRequest(BaseModel):
-    url: str = Field(..., description="Product URL to track (e.g. an Amazon /dp/ link)")
+    #: Validated as a URL rather than a bare string. A plain ``str`` let a caller
+    #: store a value carrying an HTML attribute break-out (``..." onmouseover="``)
+    #: that the dashboard then rendered into an ``href``. ``HttpUrl`` percent-encodes
+    #: those characters, so the payload cannot survive storage even if a future
+    #: template forgets to escape.
+    url: HttpUrl = Field(..., description="Product URL to track (e.g. an Amazon /dp/ link)")
 
 
 class StoreOut(BaseModel):

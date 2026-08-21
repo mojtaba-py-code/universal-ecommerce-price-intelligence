@@ -78,16 +78,21 @@ def list_products(session: Session = Depends(get_db)) -> list[ProductSummary]:
     dependencies=[Depends(require_write_access), Depends(rate_limit_writes)],
 )
 def track_product(req: TrackRequest, session: Session = Depends(get_db)) -> TrackResponse:
+    # ``req.url`` is an ``HttpUrl``; the pipeline and scrapers work on strings.
+    # Normalising once here keeps the percent-encoded form that validation
+    # produced, which is exactly what makes it safe to store and render.
+    url = str(req.url)
+
     try:
         # Resolving a scraper is also the domain allow-list check: a URL whose
         # hostname belongs to no supported store is rejected here and never
         # reaches the fetcher.
-        get_scraper_for_url(req.url)
+        get_scraper_for_url(url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
-        result = pipeline.track(session, req.url)
+        result = pipeline.track(session, url)
     except BlockedError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ScraperError as exc:

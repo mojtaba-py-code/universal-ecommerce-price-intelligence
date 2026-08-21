@@ -169,7 +169,7 @@
         <button class="secondary close" onclick="closeDetail()">✕ Close</button>
         <h2>${escapeHtml(p.title || p.external_id)}</h2>
         <div class="sub">${escapeHtml(p.brand || "")} · ${p.store.name} ·
-          <a href="${p.url}" target="_blank" rel="noopener" style="color:var(--accent)">open source ↗</a></div>
+          <a href="${escapeHtml(p.url)}" target="_blank" rel="noopener" style="color:var(--accent)">open source ↗</a></div>
         <div class="stats">
           <div class="stat"><div class="k">Current</div><div class="v">${fmt(s.current_price, p.currency)}</div></div>
           <div class="stat"><div class="k">Lowest ever</div><div class="v">${fmt(s.lowest_price, p.currency)}</div></div>
