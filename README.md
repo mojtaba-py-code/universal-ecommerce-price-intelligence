@@ -198,7 +198,7 @@ every push; see [SECURITY.md](SECURITY.md) for how to report an issue.
 python -m pytest
 ```
 
-80 tests cover scraping/parsing, the pipeline & change detection, analytics, the
+82 tests cover scraping/parsing, the pipeline & change detection, analytics, the
 SSRF guard and API access control, and the full HTTP API — all offline against
 fixtures and a temporary SQLite database. Coverage is currently 83 % with an
 **80 % floor enforced in CI**, alongside `ruff`, `mypy`, `bandit` and
