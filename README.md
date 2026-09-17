@@ -185,7 +185,9 @@ it. That is the shape of a Server-Side Request Forgery, so it is treated as one:
   fetch proxy. Reads stay public. Writes are additionally rate-limited per
   client address.
 - **Response headers.** CSP, `X-Content-Type-Options`, `X-Frame-Options: DENY`,
-  `Referrer-Policy` and `Permissions-Policy` are set on every response.
+  `Referrer-Policy` and `Permissions-Policy` are set on every response. `/docs`
+  and `/redoc` get a separate CSP that allows the Swagger UI and ReDoc bundles
+  from `cdn.jsdelivr.net`; every other page keeps the strict one.
 
 CI runs `bandit` over `src` and `pip-audit` over the pinned requirements on
 every push; see [SECURITY.md](SECURITY.md) for how to report an issue.

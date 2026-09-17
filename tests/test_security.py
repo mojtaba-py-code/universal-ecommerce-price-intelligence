@@ -209,6 +209,16 @@ def test_security_headers_present(client):
     assert "frame-ancestors 'none'" in headers["Content-Security-Policy"]
 
 
+def test_docs_policy_allows_the_swagger_cdn_and_nothing_else_does(client):
+    for path in ("/docs", "/redoc"):
+        policy = client.get(path).headers["Content-Security-Policy"]
+        assert "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net" in policy
+        assert "frame-ancestors 'none'" in policy
+
+    for path in ("/", "/health"):
+        assert "cdn.jsdelivr.net" not in client.get(path).headers["Content-Security-Policy"]
+
+
 # -- live fetching ---------------------------------------------------------
 
 

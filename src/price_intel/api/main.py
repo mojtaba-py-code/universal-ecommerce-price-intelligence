@@ -38,6 +38,22 @@ _SECURITY_HEADERS = {
     "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
 }
 
+# Swagger UI and ReDoc are FastAPI's stock pages: third-party bundles served
+# from a CDN and started by an inline script. The dashboard policy above blocks
+# that CDN, which left /docs as a blank page in every browser, so these paths
+# alone get a policy that allows it.
+_DOCS_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+    "font-src 'self' https://fonts.gstatic.com; "
+    "img-src 'self' data: https://fastapi.tiangolo.com https://cdn.jsdelivr.net "
+    "https://cdn.redoc.ly; "
+    "worker-src 'self' blob:; "
+    "frame-ancestors 'none'; base-uri 'none'; object-src 'none'"
+)
+_DOCS_PATHS = frozenset({"/docs", "/docs/oauth2-redirect", "/redoc"})
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -61,6 +77,8 @@ def create_app() -> FastAPI:
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         response = await call_next(request)
+        if request.url.path in _DOCS_PATHS:
+            response.headers.setdefault("Content-Security-Policy", _DOCS_CSP)
         for header, value in _SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
         return response
