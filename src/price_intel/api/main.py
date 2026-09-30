@@ -16,6 +16,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .. import __version__
 from ..config import get_settings
 from ..db import init_db
 from .routes import router
@@ -64,7 +65,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Universal E-commerce Price Intelligence",
-        version="1.0.0",
+        version=__version__,
         description=(
             "Scrape product data from multiple stores, track price history in a "
             "database, detect price changes, and visualize trends."

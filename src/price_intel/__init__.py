@@ -5,4 +5,11 @@ stores, stores price history in a relational database, detects price changes,
 and exposes analytics through a FastAPI web dashboard.
 """
 
-__version__ = "1.0.0"
+from importlib.metadata import PackageNotFoundError, version
+
+# pyproject.toml is the single source of the version; reading it from the
+# installed metadata keeps the API, the CLI and the package from disagreeing.
+try:
+    __version__ = version("price-intel")
+except PackageNotFoundError:  # a source tree that was never installed
+    __version__ = "0+unknown"
