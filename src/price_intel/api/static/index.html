@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Price Intelligence</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Chart.js 4.4.1 (MIT), served from this app: the page policy allows no third-party scripts. -->
+  <script src="/static/vendor/chart.umd.js"></script>
   <style>
     :root {
       --bg: #0f1420; --panel: #171e2e; --panel-2: #1e2740; --border: #2a3450;
@@ -92,7 +93,7 @@
 
   <div class="wrap">
     <div class="track-bar">
-      <input type="text" id="urlInput" placeholder="Paste an Amazon product URL (e.g. https://www.amazon.com/dp/B08N5WRWNW)" />
+      <input type="text" id="urlInput" placeholder="Paste a product URL (e.g. https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html)" />
       <button id="trackBtn">Track price</button>
       <button class="secondary" id="refreshAllBtn" title="Re-check every tracked product">↻ Refresh all</button>
     </div>
@@ -168,7 +169,7 @@
       $("#modal").innerHTML = `
         <button class="secondary close" onclick="closeDetail()">✕ Close</button>
         <h2>${escapeHtml(p.title || p.external_id)}</h2>
-        <div class="sub">${escapeHtml(p.brand || "")} · ${p.store.name} ·
+        <div class="sub">${p.brand ? escapeHtml(p.brand) + " · " : ""}${escapeHtml(p.store.name)} ·
           <a href="${escapeHtml(p.url)}" target="_blank" rel="noopener" style="color:var(--accent)">open source ↗</a></div>
         <div class="stats">
           <div class="stat"><div class="k">Current</div><div class="v">${fmt(s.current_price, p.currency)}</div></div>

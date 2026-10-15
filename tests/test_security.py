@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from price_intel.scrapers.amazon import AmazonScraper
+from price_intel.scrapers.books_toscrape import BooksToScrapeScraper
 from price_intel.scrapers.registry import get_scraper_for_url
 from price_intel.security import (
     UnsafeUrlError,
@@ -219,6 +220,21 @@ def test_docs_policy_allows_the_swagger_cdn_and_nothing_else_does(client):
         assert "cdn.jsdelivr.net" not in client.get(path).headers["Content-Security-Policy"]
 
 
+def test_dashboard_scripts_are_allowed_by_its_own_policy(client):
+    """The page loaded Chart.js from a CDN its own policy blocks, so the price
+    history chart never drew. Every script it loads must be same-origin and served."""
+    import re
+
+    page = client.get("/")
+    assert "script-src 'self' 'unsafe-inline';" in page.headers["Content-Security-Policy"]
+    sources = re.findall(r'<script[^>]+src="([^"]+)"', page.text)
+    assert sources, "the dashboard should load its chart library"
+    for src in sources:
+        assert src.startswith("/") and not src.startswith("//"), src
+        asset = client.get(src)
+        assert asset.status_code == 200 and "javascript" in asset.headers["content-type"]
+
+
 # -- live fetching ---------------------------------------------------------
 
 
@@ -307,6 +323,42 @@ def test_live_fetch_stops_after_too_many_redirects(live_mode, monkeypatch):
     with pytest.raises(ScraperError, match="too many redirects"):
         AmazonScraper().fetch(url)
     assert len(calls) == 6  # _MAX_REDIRECTS + 1
+
+
+def test_live_fetch_only_advertises_encodings_httpx_can_decode(live_mode, monkeypatch):
+    """books.toscrape.com answers ``br`` when it is offered. Without an optional
+    brotli package httpx hands the compressed bytes back as text, so a live scrape
+    parsed every field as empty."""
+    import importlib.util
+
+    url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
+    monkeypatch.setattr("price_intel.security.resolve_host", lambda host, port: ["93.184.216.34"])
+    sent: dict[str, str] = {}
+
+    def _get(target, headers, **_kwargs):
+        sent.update(headers)
+        return _FakeResponse(target)
+
+    monkeypatch.setattr("price_intel.scrapers.base.httpx.get", _get)
+    BooksToScrapeScraper().fetch(url)
+
+    offered = {c.split(";")[0].strip() for c in sent["Accept-Encoding"].split(",")}
+    decodable = {"gzip", "deflate", "identity"}
+    if any(importlib.util.find_spec(m) for m in ("brotli", "brotlicffi")):
+        decodable.add("br")
+    assert offered <= decodable
+
+
+def test_scrape_refuses_a_page_with_no_product(live_mode, monkeypatch):
+    from price_intel.scrapers.base import ScraperError
+
+    url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
+    monkeypatch.setattr("price_intel.security.resolve_host", lambda host, port: ["93.184.216.34"])
+    get, _calls = _fake_get({url: _FakeResponse(url, text=" garbled body")})
+    monkeypatch.setattr("price_intel.scrapers.base.httpx.get", get)
+
+    with pytest.raises(ScraperError, match="no product found"):
+        BooksToScrapeScraper().scrape(url)
 
 
 # --- Stored XSS via the tracked product URL --------------------------------

@@ -64,6 +64,7 @@ so trends can be charted and the lowest-ever price can be found.
 | ORM models | `src/price_intel/models.py` |
 | Scraper interface + registry | `src/price_intel/scrapers/base.py`, `registry.py` |
 | Amazon scraper (real selectors) | `src/price_intel/scrapers/amazon.py` |
+| Books to Scrape scraper (public sandbox store) | `src/price_intel/scrapers/books_toscrape.py` |
 | Normalization | `src/price_intel/normalizer.py` |
 | Pipeline + change detection | `src/price_intel/pipeline.py` |
 | Analytics | `src/price_intel/analysis.py` |
@@ -90,7 +91,7 @@ chart, stats, recent changes, and specs.
 
 ```bash
 price-intel stores                 # list registered store scrapers
-price-intel track <amazon-url>     # scrape & store one product
+price-intel track <product-url>    # scrape & store one product
 price-intel list                   # list tracked products
 price-intel stats <product_id>     # analytics for one product
 price-intel serve --reload         # run the web dashboard
@@ -132,6 +133,16 @@ Set in `.env` via `SCRAPER_MODE`:
 > of the system keeps working. This is why `fixture` mode exists and why the
 > architecture never depends on any single live source. Scrape responsibly and
 > respect each store's Terms of Service and `robots.txt`.
+
+> **A store you can scrape live.** [Books to Scrape](https://books.toscrape.com)
+> is a public sandbox bookstore built for scraping practice, with real
+> product-page markup (price, stock count, star rating, UPC, category) and no
+> anti-bot layer. Its scraper is the one to use for a live demo:
+>
+> ```bash
+> SCRAPER_MODE=live price-intel track \
+>   https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html
+> ```
 
 ---
 
@@ -200,9 +211,9 @@ every push; see [SECURITY.md](SECURITY.md) for how to report an issue.
 python -m pytest
 ```
 
-82 tests cover scraping/parsing, the pipeline & change detection, analytics, the
+98 tests cover scraping/parsing, the pipeline & change detection, analytics, the
 SSRF guard and API access control, and the full HTTP API — all offline against
-fixtures and a temporary SQLite database. Coverage is currently 83 % with an
+fixtures and a temporary SQLite database. Coverage is currently 85 % with an
 **80 % floor enforced in CI**, alongside `ruff`, `mypy`, `bandit` and
 `pip-audit`.
 

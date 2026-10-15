@@ -31,7 +31,7 @@ def _cmd_init(_: argparse.Namespace) -> int:
 def _cmd_stores(_: argparse.Namespace) -> int:
     print("Registered store scrapers:")
     for s in iter_scrapers():
-        print(f"  - {s.store_slug:10s} {s.store_name} ({s.base_url})")
+        print(f"  - {s.store_slug:14s} {s.store_name} ({s.base_url})")
     return 0
 
 
