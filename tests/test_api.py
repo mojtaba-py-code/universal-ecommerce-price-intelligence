@@ -16,6 +16,17 @@ def test_stores_endpoint_lists_amazon(client):
     assert "amazon" in slugs
 
 
+def test_track_a_book_from_the_sandbox_store(client):
+    url = "https://books.toscrape.com/catalogue/sapiens-a-brief-history-of-humankind_996/index.html"
+    r = client.post("/api/track", json={"url": url})
+    assert r.status_code == 200, r.text
+    detail = client.get(f"/api/products/{r.json()['product_id']}").json()
+    assert detail["title"] == "Sapiens: A Brief History of Humankind"
+    assert (detail["current_price"], detail["currency"]) == (54.23, "GBP")
+    assert detail["store"]["slug"] == "bookstoscrape"
+    assert detail["specs"]["Category"] == "History"
+
+
 def test_track_and_list_flow(client):
     r = client.post("/api/track", json={"url": "https://www.amazon.com/dp/B08N5WRWNW"})
     assert r.status_code == 200, r.text
@@ -39,6 +50,22 @@ def test_track_and_list_flow(client):
 def test_track_rejects_unknown_store(client):
     r = client.post("/api/track", json={"url": "https://example.com/p/1"})
     assert r.status_code == 400
+
+
+def test_unreadable_refresh_keeps_the_stored_product(client, monkeypatch):
+    """A refresh that cannot find the product on the page is a 502, and the
+    product keeps its title and price instead of being blanked."""
+    from price_intel.scrapers.books_toscrape import BooksToScrapeScraper
+
+    url = "https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html"
+    pid = client.post("/api/track", json={"url": url}).json()["product_id"]
+    monkeypatch.setattr(BooksToScrapeScraper, "fetch", lambda self, u: "<html>no product</html>")
+
+    r = client.post(f"/api/products/{pid}/refresh")
+    assert r.status_code == 502 and "no product found" in r.json()["detail"]
+    detail = client.get(f"/api/products/{pid}").json()
+    assert (detail["title"], detail["current_price"]) == ("A Light in the Attic", 51.77)
+    assert detail["stats"]["snapshots"] == 1
 
 
 def test_refresh_adds_snapshot(client):

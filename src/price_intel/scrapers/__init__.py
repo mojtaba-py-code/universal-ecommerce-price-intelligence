@@ -7,7 +7,7 @@ decorating it with ``@register``.
 """
 
 # Import concrete scrapers for their registration side-effects.
-from . import amazon  # noqa: F401  (side-effect import)
+from . import amazon, books_toscrape  # noqa: F401  (side-effect imports)
 from .base import BaseScraper, ProductData
 from .registry import get_scraper_for_url, iter_scrapers, register
 

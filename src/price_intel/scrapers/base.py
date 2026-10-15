@@ -34,7 +34,10 @@ _DEFAULT_HEADERS = {
         "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
     ),
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
+    # Only codings httpx can always decode. Advertising "br" makes servers send
+    # brotli, which httpx passes through undecoded unless an optional brotli
+    # package is installed, so every field then parsed as empty.
+    "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive",
     "Upgrade-Insecure-Requests": "1",
 }
@@ -115,9 +118,17 @@ class BaseScraper(ABC):
         return self._fetch_live(url)
 
     def scrape(self, url: str) -> ProductData:
-        """Full pipeline: fetch then parse."""
+        """Full pipeline: fetch then parse.
+
+        A page with neither a title nor a price is not a product page the parser
+        understood (a changed layout, an interstitial, an undecoded body). Saving
+        it would blank the stored product, so it is refused instead.
+        """
         html = self.fetch(url)
-        return self.parse(html, url)
+        data = self.parse(html, url)
+        if not data.title and data.price is None:
+            raise ScraperError(f"no product found on {url}: the page layout was not recognised")
+        return data
 
     # -- fetch backends ----------------------------------------------------
     def _fetch_live(self, url: str) -> str:
